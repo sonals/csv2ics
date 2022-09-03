@@ -30,6 +30,7 @@ def createEvents(timezones, row):
     for i in range(0, len(timezones)):
         e = ics.Event(name = row[0])
         e.begin = datetime.datetime.strptime(row[i + 1], "%b %d, %y")
+        e.make_all_day()
         (timezones[i])[1].events.add(e)
     print("Processed event %s" % row[0])
 
