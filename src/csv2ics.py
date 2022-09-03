@@ -6,9 +6,9 @@
 import argparse
 import sys
 import csv
-import os
-import ics
 import datetime
+import ics
+
 
 def parseCommandLine(args):
     parser = argparse.ArgumentParser(description ='Convert from CVS to ICS')
@@ -21,24 +21,23 @@ def openAllICS(row):
     for tz in row:
         pair = tuple((tz, ics.Calendar()))
         timezones.append(pair)
-        print("Constructing calendar for %s" % pair[0]);
+        print(f"Constructing calendar for {pair[0]}")
     return timezones
 
 def createEvents(timezones, row):
     if (len(row) != len(timezones) + 1):
         return
     for i in range(0, len(timezones)):
-        e = ics.Event(name = row[0])
-        e.begin = datetime.datetime.strptime(row[i + 1], "%b %d, %y")
-        e.make_all_day()
-        (timezones[i])[1].events.add(e)
-    print("Processed event %s" % row[0])
+        evt = ics.Event(name = row[0])
+        evt.begin = datetime.datetime.strptime(row[i + 1], "%b %d, %y")
+        evt.make_all_day()
+        (timezones[i])[1].events.add(evt)
+    print(f"Processed event {row[0]}")
 
 def writeAllICS(timezones):
     for pair in timezones:
-        fd = open(pair[0] + ".ics", "w")
-        fd.write(pair[1].serialize())
-        fd.close()
+        with open(pair[0] + ".ics", "wt") as fd:
+            fd.write(pair[1].serialize())
 
 def extractAllICS(festivalTab):
     timezones = []
@@ -49,26 +48,33 @@ def extractAllICS(festivalTab):
             begin = True
             continue
         if (row[0] == "Major Cities"):
-            continue;
+            continue
         if (begin):
             createEvents(timezones, row)
     writeAllICS(timezones)
 
 def parseCSV(csvName):
-    print(csvName)
-    csvFile = open(csvName)
-    festivalTab = csv.reader(csvFile)
-    print(festivalTab)
-    extractAllICS(festivalTab)
-    csvFile.close()
+    with open(csvName, "r") as csvFile:
+        festivalTab = csv.reader(csvFile)
+        extractAllICS(festivalTab)
 
 def main(args):
-    argtab = parseCommandLine(args)
-    print(argtab)
-    print("Processing CSV file %s" % argtab.fname[0]);
-    parseCSV(argtab.fname[0])
-    return 0
+    try:
+        argtab = parseCommandLine(args)
+        print(f"Processing CSV file {argtab.fname[0]}")
+        parseCSV(argtab.fname[0])
+        return 0
+    except OSError as o:
+        print(o)
+        return -o.errno
+
+    except AssertionError as a:
+        print(a)
+        return -1
+    except Exception as e:
+        print(e)
+        return -1
 
 if __name__ == "__main__":
-    result = main(sys.argv)
-    sys.exit(result)
+    RESULT = main(sys.argv)
+    sys.exit(RESULT)
