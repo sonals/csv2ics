@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
+#
 # SPDX-License-Identifier: Apache-2.0
-
+#
 # Copyright (C) 2022 sonal.santan@gmail.com
+#
+
+"""
+This is a python script to convert a calendar in CSV format to ICS format which
+can be imported by a standard calendar application. For a compatible CSV schema
+see https://mypanchang.com/2022americacanadawestindiesfestivals.php
+
+"""
 
 import argparse
 import sys
@@ -9,9 +18,11 @@ import csv
 import datetime
 import ics
 
+SKIPSET = ["Major Cities", "Countries"]
 
 def parseCommandLine(args):
-    parser = argparse.ArgumentParser(description ='Convert from CVS to ICS')
+    msg = "Convert a calendar in CSV to multiple ICS, one for each timezone"
+    parser = argparse.ArgumentParser(description = msg, exit_on_error = False)
     parser.add_argument(dest ='fname', metavar ='csv', nargs = 1)
     # strip out the argv[0]
     return parser.parse_args(args[1:])
@@ -26,35 +37,34 @@ def openAllICS(row):
 
 def createEvents(timezones, row):
     if (len(row) != len(timezones) + 1):
+        # Malformed record for this event
         return
     for i in range(0, len(timezones)):
         evt = ics.Event(name = row[0])
         evt.begin = datetime.datetime.strptime(row[i + 1], "%b %d, %y")
         evt.make_all_day()
         (timezones[i])[1].events.add(evt)
-    print(f"Processed event {row[0]}")
+    print(f"Processed event \"{row[0]}\"")
 
 def writeAllICS(timezones):
     for pair in timezones:
-        with open(pair[0] + ".ics", "wt") as fd:
+        with open(pair[0] + ".ics", mode="wt", encoding="utf8") as fd:
             fd.write(pair[1].serialize())
 
 def extractAllICS(festivalTab):
     timezones = []
-    begin = False
     for row in festivalTab:
+        if (row[0] in SKIPSET):
+            print(f"Skipped row with key \"{row[0]}\"")
+            continue
         if (row[0] == "Timezones"):
             timezones = openAllICS(row[1:])
-            begin = True
             continue
-        if (row[0] == "Major Cities"):
-            continue
-        if (begin):
-            createEvents(timezones, row)
+        createEvents(timezones, row)
     writeAllICS(timezones)
 
 def parseCSV(csvName):
-    with open(csvName, "r") as csvFile:
+    with open(csvName, mode="r", encoding="utf8") as csvFile:
         festivalTab = csv.reader(csvFile)
         extractAllICS(festivalTab)
 
@@ -66,14 +76,13 @@ def main(args):
         return 0
     except OSError as o:
         print(o)
-        return -o.errno
-
+        return o.errno
     except AssertionError as a:
-        print(a)
-        return -1
+        print(f"AssertionError {a}")
+        return 1
     except Exception as e:
         print(e)
-        return -1
+        return 1
 
 if __name__ == "__main__":
     RESULT = main(sys.argv)
