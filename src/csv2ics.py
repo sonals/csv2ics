@@ -78,7 +78,7 @@ def main(args):
         print(o)
         return o.errno
     except AssertionError as a:
-        print(f"AssertionError {a}")
+        print(a)
         return 1
     except Exception as e:
         print(e)
