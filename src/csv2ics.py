@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2022 sonal.santan@gmail.com
+# Copyright (C) 2022-2023 sonal.santan@gmail.com
 #
 
 """
@@ -18,7 +18,9 @@ import csv
 import datetime
 import ics
 
-SKIPSET = ["Major Cities", "Countries"]
+SKIPSET = ["Major Cities", "Countries", "Timezones/ Countries", "Major Cities in the Timezone"]
+
+DATEFORMAT = ["%b %d, %y", "%m/%d/%y"]
 
 def parseCommandLine(args):
     msg = "Convert a calendar in CSV to multiple ICS, one for each timezone"
@@ -30,18 +32,31 @@ def parseCommandLine(args):
 def openAllICS(row):
     timezones = []
     for tz in row:
-        pair = tuple((tz, ics.Calendar()))
+        pair = tuple((tz.strip(), ics.Calendar()))
         timezones.append(pair)
         print(f"Constructing calendar for {pair[0]}")
     return timezones
+
+def parseDateTime(string):
+    value = None
+    for formatstr in DATEFORMAT:
+        try:
+            value = datetime.datetime.strptime(string, formatstr)
+        except ValueError as e:
+            continue
+        break
+    return value
 
 def createEvents(timezones, row):
     if (len(row) != len(timezones) + 1):
         # Malformed record for this event
         return
     for i in range(0, len(timezones)):
-        evt = ics.Event(name = row[0])
-        evt.begin = datetime.datetime.strptime(row[i + 1], "%b %d, %y")
+        evt = ics.Event(name = row[0].strip())
+        evt.begin = parseDateTime(row[i + 1].strip())
+        if (evt.begin is None):
+            print(f"Unable to parse data time \"{row[i + 1].strip()}\" for event \"{evt.name}\"")
+            continue
         evt.make_all_day()
         (timezones[i])[1].events.add(evt)
     print(f"Processed event \"{row[0]}\"")
@@ -54,10 +69,11 @@ def writeAllICS(timezones):
 def extractAllICS(festivalTab):
     timezones = []
     for row in festivalTab:
-        if (row[0] in SKIPSET):
-            print(f"Skipped row with key \"{row[0]}\"")
+        key = row[0].strip()
+        if (key in SKIPSET):
+            print(f"Skipped row with key \"{key}\"")
             continue
-        if (row[0] == "Timezones"):
+        if (key == "Timezones"):
             timezones = openAllICS(row[1:])
             continue
         createEvents(timezones, row)
